@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import ScoreViewer from './components/ScoreViewer';
 import Controls from './components/Controls';
 import usePitchDetection from './hooks/usePitchDetection';
+import testScoreXml from '../public/test-score.xml?raw';
 import './App.css';
 
 // Peek inside a ZIP to list file names (detect .mscz vs .mxl)
@@ -27,7 +28,8 @@ async function listZipEntries(buffer) {
 }
 
 export default function App() {
-  const [scoreFile, setScoreFile] = useState(null);  // File object passed to OSMD
+  const [scoreFile, setScoreFile] = useState(null);  // string (test XML) or File/Blob (uploads) passed to OSMD
+  const [scoreKey, setScoreKey] = useState(0);        // increment to force ScoreViewer remount
   const [fileName, setFileName] = useState('');
   const [fileError, setFileError] = useState(null);
   const [strictMode, setStrictMode] = useState(false);
@@ -58,6 +60,8 @@ export default function App() {
     const bytes = new Uint8Array(buf, 0, 2);
     const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B;
 
+    let xmlText = null;  // decoded string for plain XML files
+
     if (isZip) {
       const entries = await listZipEntries(buf);
       const hasMscx = entries.some(n => n.endsWith('.mscx'));
@@ -66,27 +70,28 @@ export default function App() {
         return;
       }
     } else {
-      // Quick check: plain XML must mention score-partwise/timewise
+      // Decode now — we'll reuse this string to pass directly to OSMD
       const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(buf);
       if (!text.includes('score-partwise') && !text.includes('score-timewise')) {
         setFileError('not-musicxml');
         return;
       }
+      xmlText = text;
     }
 
-    // Pass the File object directly — OSMD handles Blob/File natively
-    setScoreFile(file);
+    // Plain XML → pass string directly (avoids Blob.text() path, fixes Safari)
+    // MXL/ZIP  → pass File so OSMD can unzip it
+    setScoreFile(xmlText ?? file);
+    setScoreKey(k => k + 1);
   }
 
-  async function loadTestScore() {
+  function loadTestScore() {
     if (isListening) stopListening();
     setFileError(null);
-    // Fetch test file and wrap as File so OSMD can load it the same way
-    const res = await fetch('/test-score.xml');
-    const blob = await res.blob();
-    const file = new File([blob], 'test-score.xml', { type: 'application/xml' });
     setFileName('test-score.xml');
-    setScoreFile(file);
+    // Pass XML string directly — OSMD parses <?xml strings synchronously (no Blob/fetch path)
+    setScoreFile(testScoreXml);
+    setScoreKey(k => k + 1);  // force ScoreViewer remount so clicking twice also works
   }
 
   function handleReset() {
@@ -111,7 +116,7 @@ export default function App() {
           <input
             id="xml-input"
             type="file"
-            accept=".xml,.mxl,.musicxml,.mscz"
+            accept=".xml,.mxl,.musicxml,.mscz,text/xml,application/xml,application/zip,application/vnd.recordare.musicxml,application/vnd.recordare.musicxml+xml"
             onChange={handleFileChange}
             style={{ display: 'none' }}
           />
@@ -137,7 +142,7 @@ export default function App() {
           </div>
         )}
 
-        {!fileError && scoreFile && <ScoreViewer ref={scoreRef} scoreFile={scoreFile} />}
+        {!fileError && scoreFile && <ScoreViewer key={scoreKey} ref={scoreRef} scoreFile={scoreFile} />}
 
         {!fileError && !scoreFile && (
           <div className="empty-state">

@@ -7,12 +7,14 @@ const ScoreViewer = forwardRef(({ scoreFile }, ref) => {
   const readyRef = useRef(false);
   const busyRef = useRef(false); // true while render() is in progress
   const [status, setStatus] = useState('idle');
+  const [errorDetail, setErrorDetail] = useState('');
 
   useEffect(() => {
     if (!containerRef.current || !scoreFile) return;
 
     let cancelled = false;
     setStatus('loading');
+    setErrorDetail('');
     readyRef.current = false;
     busyRef.current = false;
     osmdRef.current = null;
@@ -38,6 +40,7 @@ const ScoreViewer = forwardRef(({ scoreFile }, ref) => {
       .catch(err => {
         if (cancelled) return;
         console.error('OSMD error:', err);
+        setErrorDetail(err?.message || String(err));
         setStatus('error');
       });
 
@@ -114,6 +117,7 @@ const ScoreViewer = forwardRef(({ scoreFile }, ref) => {
       {status === 'error' && (
         <div className="overlay-message error">
           Не удалось прочитать файл. Убедитесь, что это MusicXML (.xml / .mxl).
+          {errorDetail && <div style={{ fontSize: '0.75em', marginTop: 6, opacity: 0.8 }}>{errorDetail}</div>}
         </div>
       )}
       {status === 'ended' && <div className="completion-banner">Партитура завершена!</div>}
