@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import ScoreViewer from './components/ScoreViewer';
 import Controls from './components/Controls';
 import usePitchDetection from './hooks/usePitchDetection';
+import useMidiInput from './hooks/useMidiInput';
 import testScoreXml from '../public/test-score.xml?raw';
 import './App.css';
 
@@ -45,6 +46,8 @@ export default function App() {
     devices, deviceId, setDeviceId,
     startListening, stopListening,
   } = usePitchDetection({ onNoteDetected: handleNoteDetected });
+
+  const { midiStatus } = useMidiInput({ onNoteDetected: handleNoteDetected });
 
   async function handleFileChange(e) {
     const file = e.target.files[0];
@@ -170,6 +173,7 @@ export default function App() {
             onDeviceChange={setDeviceId}
             strictMode={strictMode}
             onToggleStrict={() => setStrictMode(s => !s)}
+            midiStatus={midiStatus}
           />
         </footer>
       )}

@@ -1,10 +1,18 @@
 import { midiToNoteName } from '../utils/musicUtils';
 
+const MIDI_LABEL = {
+  unsupported: null,          // hide entirely (Safari, Firefox)
+  denied:      '🎹 нет доступа',
+  'no-device': '🎹 не подключено',
+  connected:   '🎹 подключено',
+};
+
 export default function Controls({
   isListening, onStart, onStop, onReset,
   detectedNote, detectedFreq, volume,
   devices, deviceId, onDeviceChange,
   strictMode, onToggleStrict,
+  midiStatus,
 }) {
   const noteName = midiToNoteName(detectedNote);
   const volPct = Math.round((volume ?? 0) * 100);
@@ -43,6 +51,12 @@ export default function Controls({
           <input type="checkbox" checked={strictMode} onChange={onToggleStrict} />
           Точная октава
         </label>
+
+        {MIDI_LABEL[midiStatus] && (
+          <span className={`midi-badge midi-${midiStatus}`}>
+            {MIDI_LABEL[midiStatus]}
+          </span>
+        )}
       </div>
 
       <div className="controls-right">

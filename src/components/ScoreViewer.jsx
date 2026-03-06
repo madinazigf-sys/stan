@@ -51,13 +51,44 @@ const ScoreViewer = forwardRef(({ scoreFile }, ref) => {
     };
   }, [scoreFile]);
 
+  function getCursorEl() {
+    const osmd = osmdRef.current;
+    if (!osmd) return null;
+    return osmd.cursor.cursorElement
+      ?? containerRef.current?.querySelector('img[id^="cursorImg"]');
+  }
+
   function moveCursor() {
     const osmd = osmdRef.current;
     if (!osmd) return;
     osmd.cursor.show();
-    const cursorEl = osmd.cursor.cursorElement
-      ?? containerRef.current?.querySelector('img[id^="cursorImg"]');
-    cursorEl?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    getCursorEl()?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  }
+
+  // Flash a colored bar at the current cursor position (uses fixed positioning
+  // so it works regardless of scroll / container layout).
+  function flashNote(correct) {
+    const el = getCursorEl();
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const div = document.createElement('div');
+    div.style.cssText = [
+      'position:fixed',
+      `left:${rect.left}px`,
+      `top:${rect.top}px`,
+      `width:${Math.max(rect.width, 14)}px`,
+      `height:${Math.max(rect.height, 60)}px`,
+      `background:${correct ? 'rgba(74,222,128,0.45)' : 'rgba(239,68,68,0.55)'}`,
+      'pointer-events:none',
+      'z-index:9999',
+      'border-radius:3px',
+      'transition:opacity 0.5s ease',
+    ].join(';');
+    document.body.appendChild(div);
+    requestAnimationFrame(() => {
+      div.style.opacity = '0';
+      setTimeout(() => div.remove(), 500);
+    });
   }
 
   useImperativeHandle(ref, () => ({
@@ -85,11 +116,11 @@ const ScoreViewer = forwardRef(({ scoreFile }, ref) => {
             : (detectedMidi % 12) === (scoreMidi % 12);
         });
 
-        if (matched) {
-          osmd.cursor.next();
-          moveCursor();
-          if (osmd.cursor.iterator?.EndReached) setStatus('ended');
-        }
+        // Flash before advancing so the highlight lands on the current note
+        flashNote(matched);
+        osmd.cursor.next();
+        moveCursor();
+        if (osmd.cursor.iterator?.EndReached) setStatus('ended');
 
         return matched;
       } catch (err) {

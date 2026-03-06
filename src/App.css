@@ -335,3 +335,20 @@
   opacity: 0.5;
   cursor: default;
 }
+
+.midi-badge {
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.midi-badge.midi-connected {
+  background: rgba(74,222,128,0.15);
+  color: #4ade80;
+}
+.midi-badge.midi-denied {
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+}
