@@ -238,6 +238,11 @@
   background: var(--border);
 }
 
+.btn-midi-setup.active {
+  background: var(--border);
+  color: var(--text);
+}
+
 /* ── Strict mode toggle ── */
 .strict-toggle {
   display: flex;

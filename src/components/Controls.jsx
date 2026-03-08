@@ -81,15 +81,18 @@ export default function Controls({
           Точная октава
         </label>
 
-        {/* MIDI status badge — always shown; clickable on non-Web-MIDI devices (iPad/Safari) to open bridge setup */}
-        <span
-          className={`midi-badge ${statusClass}`}
-          onClick={!hasWebMidi ? () => setShowWsSetup(s => !s) : undefined}
-          style={!hasWebMidi ? { cursor: 'pointer' } : undefined}
-          title={!hasWebMidi ? 'Настроить MIDI bridge' : undefined}
-        >
-          {label}
-        </span>
+        {/* MIDI: on Web-MIDI platforms show status badge; on iPad/Safari show a real button */}
+        {hasWebMidi ? (
+          <span className={`midi-badge ${statusClass}`}>{label}</span>
+        ) : (
+          <button
+            className={`btn-reset btn-midi-setup ${showWsSetup ? 'active' : ''}`}
+            onClick={() => setShowWsSetup(s => !s)}
+            title="Настроить MIDI через WebSocket bridge"
+          >
+            {label}
+          </button>
+        )}
       </div>
 
       {/* WebSocket bridge setup panel */}
