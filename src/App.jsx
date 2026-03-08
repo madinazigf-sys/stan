@@ -34,7 +34,14 @@ export default function App() {
   const [fileName, setFileName] = useState('');
   const [fileError, setFileError] = useState(null);
   const [strictMode, setStrictMode] = useState(false);
+  const [wsUrl, setWsUrl] = useState(() => localStorage.getItem('midiWsUrl') || '');
   const scoreRef = useRef(null);
+
+  const handleWsUrlChange = useCallback((url) => {
+    setWsUrl(url);
+    if (url) localStorage.setItem('midiWsUrl', url);
+    else localStorage.removeItem('midiWsUrl');
+  }, []);
 
   const handleNoteDetected = useCallback(
     (midi) => { scoreRef.current?.checkNote(midi, strictMode); },
@@ -47,7 +54,7 @@ export default function App() {
     startListening, stopListening,
   } = usePitchDetection({ onNoteDetected: handleNoteDetected });
 
-  const { midiStatus } = useMidiInput({ onNoteDetected: handleNoteDetected });
+  const { midiStatus } = useMidiInput({ onNoteDetected: handleNoteDetected, wsUrl: wsUrl || null });
 
   async function handleFileChange(e) {
     const file = e.target.files[0];
@@ -174,6 +181,8 @@ export default function App() {
             strictMode={strictMode}
             onToggleStrict={() => setStrictMode(s => !s)}
             midiStatus={midiStatus}
+            wsUrl={wsUrl}
+            onWsUrlChange={handleWsUrlChange}
           />
         </footer>
       )}
