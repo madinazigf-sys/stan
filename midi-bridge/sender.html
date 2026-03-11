@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>MIDI Bridge — Sender</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #1e1e2e; color: #cdd6f4; padding: 32px; max-width: 480px; margin: 0 auto; }
+    h1 { font-size: 1.2rem; margin-bottom: 4px; }
+    .sub { color: #6c7086; font-size: 0.85rem; margin-bottom: 24px; }
+    .card { background: #313244; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; }
+    .label { font-size: 0.75rem; color: #6c7086; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .status { font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #45475a; flex-shrink: 0; }
+    .dot.green { background: #a6e3a1; }
+    .dot.red   { background: #f38ba8; }
+    .dot.yellow{ background: #f9e2af; }
+    .note-box { font-size: 2rem; font-weight: bold; color: #cba6f7; min-height: 2.5rem; }
+    .log { font-size: 0.78rem; color: #6c7086; font-family: monospace; max-height: 120px; overflow-y: auto; }
+    select { background: #45475a; color: #cdd6f4; border: none; border-radius: 6px; padding: 6px 10px; font-size: 0.9rem; width: 100%; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <h1>MIDI Bridge — Sender</h1>
+  <p class="sub">Эта страница читает MIDI клавиатуру и пересылает ноты на iPad.</p>
+
+  <div class="card">
+    <div class="label">MIDI клавиатура</div>
+    <div class="status" id="midiStatus"><div class="dot" id="midiDot"></div><span id="midiText">Запрашиваю доступ...</span></div>
+    <select id="deviceSelect" style="display:none"></select>
+  </div>
+
+  <div class="card">
+    <div class="label">WebSocket (связь с сервером)</div>
+    <div class="status"><div class="dot" id="wsDot"></div><span id="wsText">Подключаюсь...</span></div>
+  </div>
+
+  <div class="card">
+    <div class="label">Последняя нота</div>
+    <div class="note-box" id="noteBox">—</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Лог</div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <script>
+    const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const midiToName = m => NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1);
+
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent = msg + '\n' + el.textContent;
+    }
+
+    // --- WebSocket to relay server ---
+    const ws = new WebSocket(`ws://${location.host}?role=sender`);
+    const wsDot = document.getElementById('wsDot');
+    const wsText = document.getElementById('wsText');
+
+    ws.onopen = () => {
+      wsDot.className = 'dot green';
+      wsText.textContent = 'Подключено к серверу';
+      log('WebSocket: connected');
+    };
+    ws.onclose = () => {
+      wsDot.className = 'dot red';
+      wsText.textContent = 'Нет связи с сервером';
+    };
+
+    // --- Web MIDI ---
+    const midiDot = document.getElementById('midiDot');
+    const midiText = document.getElementById('midiText');
+    const deviceSelect = document.getElementById('deviceSelect');
+    const noteBox = document.getElementById('noteBox');
+
+    let activeInputs = [];
+
+    function attachInputs(access) {
+      activeInputs = [...access.inputs.values()];
+      if (activeInputs.length === 0) {
+        midiDot.className = 'dot yellow';
+        midiText.textContent = 'Нет MIDI устройств';
+        deviceSelect.style.display = 'none';
+        return;
+      }
+
+      // Populate selector
+      deviceSelect.innerHTML = activeInputs.map((inp, i) =>
+        `<option value="${i}">${inp.name}</option>`
+      ).join('');
+      deviceSelect.style.display = activeInputs.length > 1 ? 'block' : 'none';
+
+      // Detach all, attach selected
+      activeInputs.forEach(inp => { inp.onmidimessage = null; });
+      const selected = activeInputs[parseInt(deviceSelect.value) || 0];
+      if (selected) {
+        selected.onmidimessage = handleMessage;
+        midiDot.className = 'dot green';
+        midiText.textContent = selected.name;
+        log(`MIDI: connected to "${selected.name}"`);
+      }
+    }
+
+    deviceSelect.onchange = (e) => {
+      activeInputs.forEach(inp => { inp.onmidimessage = null; });
+      const selected = activeInputs[parseInt(e.target.value)];
+      if (selected) {
+        selected.onmidimessage = handleMessage;
+        midiDot.className = 'dot green';
+        midiText.textContent = selected.name;
+        log(`MIDI: switched to "${selected.name}"`);
+      }
+    };
+
+    function handleMessage(e) {
+      const [status, note, velocity] = e.data;
+      if ((status & 0xF0) === 0x90 && velocity > 0) {
+        const name = midiToName(note);
+        noteBox.textContent = name;
+        log(`Note On: ${name} (${note})`);
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ midi: note }));
+        }
+      }
+    }
+
+    if (!navigator.requestMIDIAccess) {
+      midiDot.className = 'dot red';
+      midiText.textContent = 'Web MIDI не поддерживается. Открой в Chrome.';
+    } else {
+      navigator.requestMIDIAccess().then(access => {
+        attachInputs(access);
+        access.onstatechange = () => attachInputs(access);
+      }).catch(() => {
+        midiDot.className = 'dot red';
+        midiText.textContent = 'Доступ к MIDI отклонён';
+      });
+    }
+  </script>
+</body>
+</html>

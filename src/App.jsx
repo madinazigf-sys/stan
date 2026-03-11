@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import ScoreViewer from './components/ScoreViewer';
 import Controls from './components/Controls';
+import MidiSetup from './components/MidiSetup';
 import usePitchDetection from './hooks/usePitchDetection';
 import useMidiInput from './hooks/useMidiInput';
 import testScoreXml from '../public/test-score.xml?raw';
@@ -121,12 +122,14 @@ export default function App() {
           Тест (гамма до мажор)
         </button>
 
+        <MidiSetup midiStatus={midiStatus} wsUrl={wsUrl} onWsUrlChange={handleWsUrlChange} />
+
         <label className="upload-btn" htmlFor="xml-input">
           {fileName && !fileError ? `📄 ${fileName}` : '+ Открыть партитуру'}
           <input
             id="xml-input"
             type="file"
-
+            accept=".xml,.mxl"
             onChange={handleFileChange}
             style={{ display: 'none' }}
           />
@@ -180,9 +183,6 @@ export default function App() {
             onDeviceChange={setDeviceId}
             strictMode={strictMode}
             onToggleStrict={() => setStrictMode(s => !s)}
-            midiStatus={midiStatus}
-            wsUrl={wsUrl}
-            onWsUrlChange={handleWsUrlChange}
           />
         </footer>
       )}

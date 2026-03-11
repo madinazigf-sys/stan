@@ -1,51 +1,14 @@
-import { useState } from 'react';
 import { midiToNoteName } from '../utils/musicUtils';
-
-const hasWebMidi = typeof navigator !== 'undefined' && !!navigator.requestMIDIAccess;
-
-const MIDI_LABEL = {
-  unsupported:    '🎹 MIDI',
-  denied:         '🎹 нет доступа',
-  'no-device':    '🎹 не подключено',
-  connected:      '🎹 подключено',
-  'ws-waiting':   '🔌 подключение...',
-  'ws-connected': '🎹 MIDI bridge',
-  'ws-error':     '🔌 нет связи',
-};
-
-const MIDI_STATUS_CLASS = {
-  'ws-connected': 'midi-connected',
-  'ws-error':     'midi-denied',
-  'ws-waiting':   '',
-  connected:      'midi-connected',
-  denied:         'midi-denied',
-  'no-device':    '',
-};
 
 export default function Controls({
   isListening, onStart, onStop, onReset,
   detectedNote, detectedFreq, volume,
   devices, deviceId, onDeviceChange,
   strictMode, onToggleStrict,
-  midiStatus,
-  wsUrl, onWsUrlChange,
 }) {
-  const [wsInput, setWsInput] = useState(wsUrl || '');
-  const [showWsSetup, setShowWsSetup] = useState(false);
-
   const noteName = midiToNoteName(detectedNote);
   const volPct = Math.round((volume ?? 0) * 100);
   const volColor = volPct > 60 ? '#4ade80' : volPct > 20 ? '#facc15' : '#f87171';
-
-  const handleWsSubmit = (e) => {
-    e.preventDefault();
-    const url = wsInput.trim();
-    onWsUrlChange(url);
-    setShowWsSetup(false);
-  };
-
-  const label = MIDI_LABEL[midiStatus];
-  const statusClass = MIDI_STATUS_CLASS[midiStatus] || '';
 
   return (
     <div className="controls">
@@ -59,7 +22,6 @@ export default function Controls({
 
         <button className="btn-reset" onClick={onReset}>↩ Сначала</button>
 
-        {/* Audio input selector */}
         {devices.length > 1 && (
           <select
             className="device-select"
@@ -80,43 +42,7 @@ export default function Controls({
           <input type="checkbox" checked={strictMode} onChange={onToggleStrict} />
           Точная октава
         </label>
-
-        {/* MIDI status button — always a real button so it's visible on all platforms */}
-        <button
-          className={`btn-reset btn-midi-setup ${statusClass} ${showWsSetup ? 'active' : ''}`}
-          onClick={() => setShowWsSetup(s => !s)}
-          title="MIDI"
-        >
-          {label}
-        </button>
       </div>
-
-      {/* WebSocket bridge setup panel */}
-      {showWsSetup && (
-        <form className="ws-setup-panel" onSubmit={handleWsSubmit}>
-          <span className="ws-setup-label">MIDI Bridge URL:</span>
-          <input
-            className="ws-setup-input"
-            type="text"
-            placeholder="ws://192.168.1.100:9001"
-            value={wsInput}
-            onChange={e => setWsInput(e.target.value)}
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-          />
-          <button className="ws-setup-btn" type="submit">Подключить</button>
-          {wsUrl && (
-            <button
-              className="ws-setup-btn ws-setup-clear"
-              type="button"
-              onClick={() => { setWsInput(''); onWsUrlChange(''); setShowWsSetup(false); }}
-            >
-              Очистить
-            </button>
-          )}
-        </form>
-      )}
 
       <div className="controls-right">
         {isListening && (
