@@ -19,8 +19,6 @@
   flex-shrink: 0;
   gap: 12px;
   position: relative;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 /* MIDI setup button + dropdown in header */
