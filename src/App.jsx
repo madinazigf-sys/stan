@@ -129,7 +129,6 @@ export default function App() {
           <input
             id="xml-input"
             type="file"
-            accept=".xml,.mxl"
             onChange={handleFileChange}
             style={{ display: 'none' }}
           />
